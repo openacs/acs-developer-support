@@ -16,7 +16,7 @@ ad_proc -private ds_instance_id {} {
     } -default 0]]
 }
 
-ad_proc -public ds_permission_p {} {
+ad_proc ds_permission_p {} {
     Do we have permission to view developer support stuff.
 } {
     return [ad_permission_p -user_id [ds_get_real_user_id] [ds_instance_id] "admin"]
@@ -31,7 +31,7 @@ ad_proc -public ds_require_permission {
     if {$user_id == 0} {
       ad_maybe_redirect_for_registration
     } else {
-      ns_log Warning "$user_id doesn't have $privilege on object $object_id"
+      ns_log Notice "$user_id doesn't have $privilege on object $object_id"
       ad_return_forbidden "Permission Denied" "<blockquote>
       <p>You don't have permission to $privilege [db_string name {select acs_object.name(:object_id) from dual}].</p>
       </blockquote>"
@@ -40,7 +40,7 @@ ad_proc -public ds_require_permission {
   }
 }
 
-ad_proc -public ds_enabled_p {} { 
+ad_proc ds_enabled_p {} { 
     Returns true if developer-support facilities are enabled.
 } {
     if { ![nsv_exists ds_properties enabled_p] || ![nsv_get ds_properties enabled_p] } {
@@ -49,7 +49,7 @@ ad_proc -public ds_enabled_p {} {
     return 1
 }
 
-ad_proc -public ds_collection_enabled_p {} {
+ad_proc ds_collection_enabled_p {} {
     Returns whether we're collecting information about this request
 } {
     global ad_conn
@@ -64,21 +64,21 @@ ad_proc -public ds_collection_enabled_p {} {
     return 0
 }
 
-ad_proc -public ds_user_switching_enabled_p {} { 
+ad_proc ds_user_switching_enabled_p {} { 
     Returns whether user-switching is enabled.
 } {
     return [expr {[nsv_exists ds_properties user_switching_enabled_p] &&
                   [nsv_get ds_properties user_switching_enabled_p]}]
 }
 
-ad_proc -public ds_database_enabled_p {} { 
+ad_proc ds_database_enabled_p {} { 
     Returns true if developer-support database facilities are enabled. 
 } {
     return [nsv_get ds_properties database_enabled_p]
 }
 
 
-ad_proc -public ds_lookup_administrator_p { user_id } { } {
+proc_doc ds_lookup_administrator_p { user_id } { } {
     return 1
 }
 
@@ -90,9 +90,7 @@ ad_proc -private ds_support_url {} {
     return [apm_package_url_from_key "acs-developer-support"]
 }
 
-ad_proc ds_link {} { 
-    Returns the "Developer Information" link in a right-aligned table, if enabled. 
-} {
+proc_doc ds_link {} { Returns the "Developer Information" link in a right-aligned table, if enabled. } {
 
     if { ![ds_enabled_p] && ![ds_user_switching_enabled_p] } {
 	return ""
@@ -151,7 +149,7 @@ ad_proc ds_link {} {
     }
     
     if { [ds_user_switching_enabled_p] } {
-	append out "<tr><td align=\"right\">[ds_user_select_widget]</td></tr>"
+	append out "<tr><td align=\"right\">[ds_user_select_widget]</td>"
     }
     
     append out "</table>\n"
@@ -159,10 +157,7 @@ ad_proc ds_link {} {
 
 }
 
-ad_proc -private ds_collect_connection_info {} { 
-    Collects information about the current connection. 
-    Should be called only at the very beginning of the request processor handler. 
-} {
+proc_doc ds_collect_connection_info {} { Collects information about the current connection. Should be called only at the very beginning of the request processor handler. } {
     # JCD: check recursion_count to ensure adding headers only one time.
     if { [ds_enabled_p] && [ds_collection_enabled_p] && ![ad_conn recursion_count]} {
         ##This is expensive, but easy.  Otherwise we need to do it in every interpreter
@@ -179,49 +174,43 @@ ad_proc -private ds_collect_connection_info {} {
     }
 }    
 
-ad_proc -private ds_collect_db_call { db command statement_name sql start_time errno error } {
+proc_doc ds_collect_db_call { db command statement_name sql start_time errno error } {
     if { [ds_enabled_p] && [ds_collection_enabled_p] && [ds_database_enabled_p] } {
-        set bound_sql $sql
+         set bound_sql $sql
 
-        # It is very useful to be able to see the bind variable values displayed in the
-        # ds output. For postgresql we have a way of doing this with the proc db_bind_var_substitution
-        # but this proc does not work for Oracle
-
-        # JCD: don't bind if there was an error since this can potentially mess up the traceback 
-        # making bugs much harder to track down 
-        if { !$errno && [string equal [db_type] "postgresql"] } {
-            upvar bind bind
-            set errno [catch {
-                if { [info exists bind] && [llength $bind] != 0 } {
-                    if { [llength $bind] == 1 } {
-                        set bind_vars [list]
-                        set len [ns_set size $bind]
-                        for {set i 0} {$i < $len} {incr i} {
-                            lappend bind_vars [ns_set key $bind $i] \
-                                [ns_set value $bind $i]
-                        }
-                        set bound_sql [db_bind_var_substitution $sql $bind_vars]
-                    } else {
-                        set bound_sql [db_bind_var_substitution $sql $bind]
-                    }
-                } else {
-                    set bound_sql [uplevel 4 [list db_bind_var_substitution $sql]]
-                }
+         # It is very useful to be able to see the bind variable values displayed in the
+         # ds output. For postgresql we have a way of doing this with the proc db_bind_var_substitution
+         # but this proc does not work for Oracle
+         if { [string equal [db_type] "postgresql"] } {
+             upvar bind bind
+             set errno [catch {
+             if { [info exists bind] && [llength $bind] != 0 } {
+                 if { [llength $bind] == 1 } {
+                     set bind_vars [list]
+                     set len [ns_set size $bind]
+                     for {set i 0} {$i < $len} {incr i} {
+                         lappend bind_vars [ns_set key $bind $i] \
+                                 [ns_set value $bind $i]
+                     }
+                     set bound_sql [db_bind_var_substitution $sql $bind_vars]
+                 } else {
+                     set bound_sql [db_bind_var_substitution $sql $bind]
+                 }
+             } else {
+                 set bound_sql [uplevel 4 [list db_bind_var_substitution $sql]]
+             }
             } error]
+
             if { $errno } {
-                ns_log Warning "ds_collect_db_call: $error"
-                set bound_sql $sql
+               ns_log Error "ds_collect_db_call: $error"
             }
-        }
-        
-        ds_add db $db $command $statement_name $bound_sql $start_time [clock clicks] $errno $error
+         }
+
+       ds_add db $db $command $statement_name $bound_sql $start_time [clock clicks] $errno $error
     }
 }
 
-ad_proc -private ds_add { name args } { 
-    Sets a developer-support property for the current request. 
-    Should never be used except by elements of the request processor (e.g., security filters or abstract URLs). 
-} {
+proc_doc ds_add { name args } { Sets a developer-support property for the current request. Should never be used except by elements of the request processor (e.g., security filters or abstract URLs). } {
     
     if { [ds_enabled_p] && [ds_collection_enabled_p] } { 
         if { [catch { nsv_exists ds_request . }] } {
@@ -237,14 +226,14 @@ ad_proc -private ds_add { name args } {
     }
 }
 
-ad_proc -public ds_comment { value } { Adds a comment to the developer-support information for the current request. } {
+proc_doc ds_comment { value } { Adds a comment to the developer-support information for the current request. } {
 
      if { [ds_enabled_p] } {
          ds_add comment $value
      }
 }
 
-ad_proc -private ds_sweep_data {} {
+proc ds_sweep_data {} {
     set now [ns_time]
     set lifetime [ad_parameter -package_id [ds_instance_id] DataLifetime acs-developer-support 900]
 
@@ -272,10 +261,10 @@ ad_proc -private ds_sweep_data {} {
 	}
     }	
     
-    ns_log "Debug" "Swept developer support information for [array size kill_requests] requests ($kill_count nsv elements)"
+    ns_log "Notice" "Swept developer support information for [array size kill_requests] requests ($kill_count nsv elements)"
 }
 
-ad_proc -private ds_trace_filter { conn args why } { Adds developer-support information about the end of sessions.} {
+proc_doc ds_trace_filter { conn args why } { Adds developer-support information about the end of sessions.} {
     if { [ds_enabled_p] && [ds_collection_enabled_p] } {
 	ds_add conn end [ns_time] endclicks [clock clicks]
 
@@ -294,7 +283,7 @@ ad_proc -private ds_trace_filter { conn args why } { Adds developer-support info
     return "filter_ok"
 }
 
-ad_proc -public ds_user_select_widget {}  {
+ad_proc ds_user_select_widget {}  {
     set user_id [ad_get_user_id]
     set real_user_id [ds_get_real_user_id]
 
@@ -359,7 +348,7 @@ ad_proc -private ds_get_real_user_id {} {
     }
 }
 
-ad_proc -public ds_get_user_id {{original 0}} {
+ad_proc ds_get_user_id {{original 0}} {
     Developer support version of ad_get_user_id, used for debugging sites.
 } {
     set orig_user_id [ds_get_real_user_id]
@@ -371,7 +360,7 @@ ad_proc -public ds_get_user_id {{original 0}} {
     }
 }
 
-ad_proc -public ds_conn { args } {
+ad_proc ds_conn { args } {
     Developer support version of ad_conn. Overloads "ad_conn user_id",
     delegates to ad_conn in all other cases.
 } {
@@ -383,24 +372,14 @@ ad_proc -public ds_conn { args } {
     }
 }
 
-ad_proc -public ds_set_user_switching_enabled { enabled_p } {
+ad_proc ds_set_user_switching_enabled { enabled_p } {
     Enables/disables user-switching in a safe manner.
 
     @author Lars Pind (lars@pinds.com)
     @creation-date 31 August 2000
 } {
-    ns_log Notice "Developer-support user-switching [ad_decode $enabled_p 1 "enabled" "disabled"]"
+    ns_log Warning "Developer-support user-switching [ad_decode $enabled_p 1 "enabled" "disabled"]"
     nsv_set ds_properties user_switching_enabled_p $enabled_p
-}
-
-ad_proc -public ds_set_database_enabled { enabled_p } {
-    Enables/disables database statistics in a safe manner.
-
-    @author Lars Pind (lars@pinds.com)
-    @creation-date 31 August 2000
-} {
-    ns_log Notice "Developer-support database stats [ad_decode $enabled_p 1 "enabled" "disabled"]"
-    nsv_set ds_properties database_enabled_p $enabled_p
 }
 
 ad_proc -private ds_replace_get_user_procs { enabled_p } {
