@@ -151,7 +151,7 @@ ad_proc ds_link {} {
     }
     
     if { [ds_user_switching_enabled_p] } {
-	append out "<tr><td align=\"right\">[ds_user_select_widget]</td></tr>"
+	append out "<tr><td align=\"right\">[ds_user_select_widget]</td>"
     }
     
     append out "</table>\n"
@@ -181,40 +181,37 @@ ad_proc -private ds_collect_connection_info {} {
 
 ad_proc -private ds_collect_db_call { db command statement_name sql start_time errno error } {
     if { [ds_enabled_p] && [ds_collection_enabled_p] && [ds_database_enabled_p] } {
-        set bound_sql $sql
+         set bound_sql $sql
 
-        # It is very useful to be able to see the bind variable values displayed in the
-        # ds output. For postgresql we have a way of doing this with the proc db_bind_var_substitution
-        # but this proc does not work for Oracle
-
-        # JCD: don't bind if there was an error since this can potentially mess up the traceback 
-        # making bugs much harder to track down 
-        if { !$errno && [string equal [db_type] "postgresql"] } {
-            upvar bind bind
-            set errno [catch {
-                if { [info exists bind] && [llength $bind] != 0 } {
-                    if { [llength $bind] == 1 } {
-                        set bind_vars [list]
-                        set len [ns_set size $bind]
-                        for {set i 0} {$i < $len} {incr i} {
-                            lappend bind_vars [ns_set key $bind $i] \
-                                [ns_set value $bind $i]
-                        }
-                        set bound_sql [db_bind_var_substitution $sql $bind_vars]
-                    } else {
-                        set bound_sql [db_bind_var_substitution $sql $bind]
-                    }
-                } else {
-                    set bound_sql [uplevel 4 [list db_bind_var_substitution $sql]]
-                }
+         # It is very useful to be able to see the bind variable values displayed in the
+         # ds output. For postgresql we have a way of doing this with the proc db_bind_var_substitution
+         # but this proc does not work for Oracle
+         if { [string equal [db_type] "postgresql"] } {
+             upvar bind bind
+             set errno [catch {
+             if { [info exists bind] && [llength $bind] != 0 } {
+                 if { [llength $bind] == 1 } {
+                     set bind_vars [list]
+                     set len [ns_set size $bind]
+                     for {set i 0} {$i < $len} {incr i} {
+                         lappend bind_vars [ns_set key $bind $i] \
+                                 [ns_set value $bind $i]
+                     }
+                     set bound_sql [db_bind_var_substitution $sql $bind_vars]
+                 } else {
+                     set bound_sql [db_bind_var_substitution $sql $bind]
+                 }
+             } else {
+                 set bound_sql [uplevel 4 [list db_bind_var_substitution $sql]]
+             }
             } error]
+
             if { $errno } {
-                ns_log Warning "ds_collect_db_call: $error"
-                set bound_sql $sql
+               ns_log Error "ds_collect_db_call: $error"
             }
-        }
-        
-        ds_add db $db $command $statement_name $bound_sql $start_time [clock clicks] $errno $error
+         }
+
+       ds_add db $db $command $statement_name $bound_sql $start_time [clock clicks] $errno $error
     }
 }
 
@@ -389,7 +386,7 @@ ad_proc -public ds_set_user_switching_enabled { enabled_p } {
     @author Lars Pind (lars@pinds.com)
     @creation-date 31 August 2000
 } {
-    ns_log Notice "Developer-support user-switching [ad_decode $enabled_p 1 "enabled" "disabled"]"
+    ns_log Warning "Developer-support user-switching [ad_decode $enabled_p 1 "enabled" "disabled"]"
     nsv_set ds_properties user_switching_enabled_p $enabled_p
 }
 
@@ -399,7 +396,7 @@ ad_proc -public ds_set_database_enabled { enabled_p } {
     @author Lars Pind (lars@pinds.com)
     @creation-date 31 August 2000
 } {
-    ns_log Notice "Developer-support database stats [ad_decode $enabled_p 1 "enabled" "disabled"]"
+    ns_log Warning "Developer-support database stats [ad_decode $enabled_p 1 "enabled" "disabled"]"
     nsv_set ds_properties database_enabled_p $enabled_p
 }
 
