@@ -14,8 +14,6 @@ ds_require_permission [ad_conn package_id] "admin"
 
 set enabled_p [nsv_get ds_properties enabled_p]
 set user_switching_enabled_p [nsv_get ds_properties user_switching_enabled_p]
-set database_enabled_p [nsv_get ds_properties database_enabled_p]
-
 set package_id [ad_conn package_id]
 
 doc_body_append "[ad_header "ACS Developer Support"]
@@ -25,7 +23,6 @@ doc_body_append "[ad_header "ACS Developer Support"]
 <hr>
 
 <ul>
-<li><a href=\"shell.tcl\">OpenACS Shell</a>
 <li>Developer support information is currently
 [ad_decode $enabled_p 1 \
     "on (<a href=\"set-enabled?enabled_p=0\">turn it off</a>)" \
@@ -72,11 +69,6 @@ and has a lifetime of [ad_parameter DataLifetime "developer-support" 900] sec
 [ad_decode $user_switching_enabled_p 1 \
     "on (<a href=\"set-user-switching-enabled?enabled_p=0\">turn it off</a>)" \
     "off (<a href=\"set-user-switching-enabled?enabled_p=1\">turn it on</a>)"]
-
-<li>Database statistics is currently
-[ad_decode $database_enabled_p 1 \
-    "on (<a href=\"set-database-enabled?enabled_p=0\">turn it off</a>)" \
-    "off (<a href=\"set-database-enabled?enabled_p=1\">turn it on</a>)"]
 
 </ul>
 
