@@ -35,9 +35,6 @@
    object_id
    privilege
  } {
-     Requires the user identified by ds_add_conn user_id to have the given privilege on
-     the given object.
- } {
      set user_id [ds_ad_conn user_id]
      if {![permission::permission_p -party_id $user_id -object_id $object_id -privilege $privilege]} {
      if {$user_id == 0} {
@@ -101,14 +98,12 @@
  }
 
  ad_proc -public ds_adp_reveal_enabled_p {} { 
-    Returns true if developer-support adp revealing facilities are enabled. 
+     Returns true if developer-support adp revealing facilities are enabled. 
  } {
      return [nsv_get ds_properties adp_reveal_enabled_p]
  }
 
  ad_proc -public ds_adp_box_class {} {
-    Return developer support adp box class on/off
-} {
      if { [ds_adp_reveal_enabled_p] } {
          return developer-support-adp-box-on
      } else {
@@ -117,8 +112,6 @@
  }
 
  ad_proc -public ds_adp_file_class {} {
-    Return developer support adp file on/off
-} {
      if { [ds_adp_reveal_enabled_p] } {
          return developer-support-adp-file-on
      } else {
@@ -127,8 +120,6 @@
  }
 
  ad_proc -public ds_adp_output_class {} {
-    Return developer support adp output on/off
-} {
      if { [ds_adp_reveal_enabled_p] } {
          return developer-support-adp-output-on
      } else {
@@ -138,8 +129,6 @@
 
  ad_proc -public ds_adp_start_box {
      {-stub \$__adp_stub} 
- } {
-    Appends adp start box if the show toggle is true
  } {
      template::adp_append_code "if { \[::ds_show_p\] } {"
      template::adp_append_code "    set __apidoc_path \[string range $stub \[string length \[::acs_root_dir\]\] end\].adp"
@@ -151,8 +140,6 @@
 
  ad_proc -public ds_adp_end_box {
      {-stub \$__adp_stub} 
- } {
-    Appends adp end box if the show toggle is true
  } {
      template::adp_append_code "if { \[::ds_show_p\] } {"
      template::adp_append_code "    append __adp_output \"</div></div><!-- END\n$stub (lvl \[info level\])-->\""
@@ -421,11 +408,7 @@
      return "filter_ok"
  }
 
- ad_proc -public ds_user_select_widget {} {
-     Build a select widget for all users in the system, for quick user switching.  Very
-     expensive (returns a big file) for openacs instances with a large number of users,
-     so perhaps best used on test instances.
- } {
+ ad_proc -public ds_user_select_widget {}  {
      set user_id [ad_get_user_id]
      set real_user_id [ds_get_real_user_id]
 
